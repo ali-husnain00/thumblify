@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import SoftBackdrop from "../components/SoftBackdrop";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { context } from "../Context/Context";
 
 const Login = () => {
   const navigate = useNavigate();
+  const { getUser } = useContext(context);
 
   const [state, setState] = useState("login");
   const [loading, setLoading] = useState(false);
@@ -56,7 +58,7 @@ const Login = () => {
       if (res.ok) {
         const { token } = data;
         localStorage.setItem("token", token);
-        // await getUser();
+        await getUser();
         setFormData({ name: "", email: "", password: "" });
         setLoading(false);
         toast.success(data.message);
@@ -67,27 +69,6 @@ const Login = () => {
       }
     }
   };
-
-  //   const getUser = async () => {
-  //     const token = localStorage.getItem("token");
-  //     if (!token) {
-  //       return;
-  //     }
-  //     const res = await fetch("http://localhost:5000/api/user", {
-  //       method: "GET",
-  //       headers: { Authorization: `Bearer ${token}` },
-  //     });
-  //     const data = await res.json();
-  //     if (res.ok) {
-  //       console.log(data);
-  //     } else {
-  //       console.error("Failed to fetch user data.");
-  //     }
-  //   };
-
-  //   useEffect(() => {
-  //     getUser();
-  //   }, []);
 
   return (
     <>

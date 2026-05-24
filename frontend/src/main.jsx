@@ -2,6 +2,7 @@ import { createRoot } from 'react-dom/client'
 import App from './App.jsx'
 import { BrowserRouter } from 'react-router-dom'
 import './globals.css'
+import { ContextProvider } from './Context/Context.jsx'
 
 const rootEl = document.getElementById('root')
 if (!rootEl) {
@@ -10,6 +11,8 @@ if (!rootEl) {
 
 createRoot(rootEl).render(
   <BrowserRouter>
+  <ContextProvider>
     <App />
-  </BrowserRouter>,
+  </ContextProvider>
+  </BrowserRouter>
 )

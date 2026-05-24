@@ -19,7 +19,7 @@ load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
-connect_db(app)
+connect_db(app) # this function connects to database
 
 jwt = JWTManager(app)  # initialize JWT manager for handling auth
 
