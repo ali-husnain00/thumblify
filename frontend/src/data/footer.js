@@ -12,7 +12,7 @@ export const footerData = [
         title: "Resources",
         links: [
             { name: "Generate", href: "/generate" },
-            { name: "My generations", href: "/my-generation" },
+            { name: "My generations", href: "/my-generations" },
             { name: "Contact", href: "/contact" },
         ]
     },

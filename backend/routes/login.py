@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from config.db import mysql
 from werkzeug.security import check_password_hash
 from flask_jwt_extended import create_access_token
+from datetime import timedelta
 
 login_bp = Blueprint("login", __name__)
 
@@ -25,6 +26,6 @@ def login():
         cur.close()
 
     user_id = str(user[0])  
-    token = create_access_token(identity=(user_id))
+    token = create_access_token(identity=(user_id), expires_delta=timedelta(days=1))
 
     return jsonify({"message": "Login successful", "token": token}), 200

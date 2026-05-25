@@ -8,17 +8,36 @@ import thumb_7 from "./thumb_7.jpg";
 
 export const aspectRatios = ["16:9", "1:1", "9:16"];
 
-export const thumbnailStyles = ["Bold & Graphic", "Minimalist", "Photorealistic", "Illustrated", "Tech/Futuristic"];
+export const thumbnailStyles = [
+    "Bold & Graphic",
+    "Minimalist",
+    "Photorealistic",
+    "Illustrated",
+    "Tech/Futuristic",
+    "Cyberpunk",
+    "Gaming",
+    "Horror / Dark",
+    "Retro / Vaporwave",
+    "Corporate",
+];
 
 export const colorSchemes = [
-    { id: "vibrant", name: "Vibrant", colors: ["#FF6B6B", "#4ECDC4", "#45B7D1"] },
-    { id: "sunset", name: "Sunset", colors: ["#FF8C42", "#FF3C38", "#A23B72"] },
-    { id: "ocean", name: "Ocean", colors: ["#0077B6", "#00B4D8", "#90E0EF"] },
-    { id: "forest", name: "Forest", colors: ["#2D6A4F", "#40916C", "#95D5B2"] },
-    { id: "purple", name: "Purple Dream", colors: ["#7B2CBF", "#9D4EDD", "#C77DFF"] },
-    { id: "monochrome", name: "Monochrome", colors: ["#212529", "#495057", "#ADB5BD"] },
-    { id: "neon", name: "Neon", colors: ["#FF00FF", "#00FFFF", "#FFFF00"] },
-    { id: "pastel", name: "Pastel", colors: ["#FFB5A7", "#FCD5CE", "#F8EDEB"] },
+    { id: "vibrant", name: "Vibrant", colors: ["#FF2D55", "#FF9500", "#00C2FF"] },
+    { id: "sunset", name: "Sunset", colors: ["#FF6B35", "#F72585", "#7209B7"] },
+    { id: "ocean", name: "Ocean", colors: ["#0077B6", "#00B4D8", "#CAF0F8"] },
+    { id: "forest", name: "Forest", colors: ["#1B4332", "#40916C", "#D8F3DC"] },
+    { id: "purple", name: "Purple Dream", colors: ["#5A189A", "#9D4EDD", "#E0AAFF"] },
+    { id: "fire", name: "Fire", colors: ["#FF4500", "#FFD700", "#1A1A2E"] },
+    { id: "cinematic", name: "Cinematic", colors: ["#0D1B2A", "#E09F3E", "#FCBF49"] },
+    { id: "neon", name: "Neon", colors: ["#FF00E5", "#00F5FF", "#FFE600"] },
+    { id: "pastel", name: "Pastel", colors: ["#FFB4A2", "#BDE0FE", "#FFC8DD"] },
+    { id: "monochrome", name: "Monochrome", colors: ["#0B0B0B", "#4A4A4A", "#F5F5F5"] },
+    { id: "cyberpunk", name: "Cyberpunk", colors: ["#00F5FF", "#FF00A8", "#0A0A12"] },
+    { id: "gaming", name: "Gaming", colors: ["#39FF14", "#BF00FF", "#0D0221"] },
+    { id: "gold", name: "Gold Luxury", colors: ["#FFD700", "#1A1A1A", "#FFF8E7"] },
+    { id: "arctic", name: "Arctic", colors: ["#CAF0F8", "#0077B6", "#FFFFFF"] },
+    { id: "crimson", name: "Crimson", colors: ["#DC0000", "#1A0000", "#FF6B6B"] },
+    { id: "vaporwave", name: "Vaporwave", colors: ["#FF71CE", "#01CDFE", "#B967FF"] },
 ];
 
 export const dummyThumbnails = [

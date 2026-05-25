@@ -1,15 +1,32 @@
-import { ChevronDownIcon, CpuIcon, ImageIcon, PenToolIcon, SparkleIcon, SquareIcon } from 'lucide-react'
+import {
+    BriefcaseIcon,
+    ChevronDownIcon,
+    CpuIcon,
+    Gamepad2Icon,
+    ImageIcon,
+    PenToolIcon,
+    RadioIcon,
+    SkullIcon,
+    SparkleIcon,
+    SquareIcon,
+    ZapIcon,
+} from 'lucide-react'
 import React from 'react'
 import { thumbnailStyles } from '../assets/assets'
 
 const StyleSelector = ({ style, setStyle, styleDropdownOpen, setStyleDropdownOpen }) => {
 
     const styleDescriptions = {
-        "Bold & Graphic": "High contrast, bold typography, striking visuals",
-        "Minimalist": "Clean, simple, lots of white space",
-        "Photorealistic": "Photo-based, natural looking",
-        "Illustrated": "Hand-drawn, artistic, creative",
-        "Tech/Futuristic": "Modern, sleek, tech-inspired",
+        "Bold & Graphic": "Oversized title, stroke/shadow, punchy contrast",
+        "Minimalist": "Short title, negative space, restrained palette",
+        "Photorealistic": "DSLR realism, title in lower third",
+        "Illustrated": "Vector art, title woven into composition",
+        "Tech/Futuristic": "Neon edges, holographic, sleek sans title",
+        "Cyberpunk": "Neon city, glitch, chrome typography",
+        "Gaming": "HUD overlays, RGB energy, esports props",
+        "Horror / Dark": "Moody shadows, thriller atmosphere",
+        "Retro / Vaporwave": "80s grid, synth sunset, retro chrome",
+        "Corporate": "Clean professional, trust icons, polished",
     }
 
     const styleIcons = {
@@ -18,6 +35,11 @@ const StyleSelector = ({ style, setStyle, styleDropdownOpen, setStyleDropdownOpe
         "Photorealistic": <ImageIcon className="h-4 w-4" />,
         "Illustrated": <PenToolIcon className="h-4 w-4" />,
         "Tech/Futuristic": <CpuIcon className="h-4 w-4" />,
+        "Cyberpunk": <ZapIcon className="h-4 w-4" />,
+        "Gaming": <Gamepad2Icon className="h-4 w-4" />,
+        "Horror / Dark": <SkullIcon className="h-4 w-4" />,
+        "Retro / Vaporwave": <RadioIcon className="h-4 w-4" />,
+        "Corporate": <BriefcaseIcon className="h-4 w-4" />,
     }
 
     return (
@@ -39,17 +61,17 @@ const StyleSelector = ({ style, setStyle, styleDropdownOpen, setStyleDropdownOpe
             </button>
 
             {styleDropdownOpen && (
-                <div className="absolute bottom-0 z-50 mt-1 w-full rounded-md border
+                <div className="absolute bottom-0 z-50 mt-1 max-h-64 w-full overflow-y-auto rounded-md border
                  border-white/12 bg-black/20 backdrop-blur-3xl shadow-lg">
-                    {thumbnailStyles.map((style) => (
-                        <button key={style}
+                    {thumbnailStyles.map((s) => (
+                        <button key={s}
                             type='button'
-                            onClick={() => { setStyle(style); setStyleDropdownOpen(false); }}
+                            onClick={() => { setStyle(s); setStyleDropdownOpen(false); }}
                             className="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-black/30">
-                            <div className='mt -0.5'>{styleIcons[style]}</div>
+                            <div className='mt-0.5'>{styleIcons[s]}</div>
                             <div>
-                                <p className='font-medium'>{style}</p>
-                                <p className='text-xs text-zinc-400'>{styleDescriptions[style]}</p>
+                                <p className='font-medium'>{s}</p>
+                                <p className='text-xs text-zinc-400'>{styleDescriptions[s]}</p>
                             </div>
                         </button>
                     ))}

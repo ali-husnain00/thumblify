@@ -6,7 +6,7 @@ const ColorSchemeSelector = ({ colorSchemeId, setColorSchemeId }) => {
         <div className='space-y-3'>
             <label className='block text-sm font-medium
             text-zinc-200'>Color Scheme</label>
-            <div className='grid grid-cols-6 gap-3'>
+            <div className='grid grid-cols-4 gap-3 sm:grid-cols-5'>
                 {colorSchemes.map((scheme) => (
                     <button key={scheme.id}
                         onClick={() => setColorSchemeId(scheme.id)}

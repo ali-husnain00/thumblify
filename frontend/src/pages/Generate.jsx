@@ -1,80 +1,56 @@
-import React, { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import React, { useContext, useEffect, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { motion } from 'motion/react';
 import SoftBackdrop from '../components/SoftBackdrop';
 import AspectRatioSelector from '../components/AspectRatioSelector';
-import { colorSchemes, dummyThumbnails } from '../assets/assets';
+import { colorSchemes } from '../assets/assets';
 import StyleSelector from '../components/StyleSelector';
 import ColorSchemeSelector from '../components/ColorSchemeSelector';
 import PreviewPanel from '../components/PreviewPanel';
+import { context } from '../Context/Context';
+import { toast } from 'sonner';
 
 const Generate = () => {
     const { id } = useParams()
+
+    const {user} = useContext(context);
+    const navigate = useNavigate();
 
     const [title, setTitle] = useState('');
     const [additionalDetails, setAdditionalDetails] = useState('');
     const [thumbnail, setThumbnail] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [loadingStage, setLoadingStage] = useState('');
     const [aspectRatio, setAspectRatio] = useState('16:9');
     const [colorSchemeId, setColorSchemeId] = useState(colorSchemes[0].id);
     const [style, setStyle] = useState('Bold & Graphic');
     const [styleDropdownOpen, setStyleDropdownOpen] = useState(false);
-    const [titlePosition, setTitlePosition] = useState({ xPct: 50, yPct: 88 });
-    const [titleFontScale, setTitleFontScale] = useState(1);
-    const [titleTextStyle, setTitleTextStyle] = useState({
-        fill: '#ffffff',
-        outline: '#000000',
-        outlineWidth: 2,
-    });
-
-    const stylePrompts = {
-        'Bold & Graphic': 'eye-catching scene, vibrant colors, expressive subject or reaction, dramatic lighting, high contrast, click-worthy composition, graphic punch without any lettering',
-        'Tech/Futuristic': 'futuristic environment, sleek modern shapes, glowing accents, holographic effects, cyber-tech mood, sharp lighting, abstract tech visuals only',
-        'Minimalist': 'minimalist scene, clean layout, simple shapes, limited color palette, plenty of negative space, modern flat look, clear focal point',
-        'Photorealistic': 'photorealistic scene, ultra-realistic lighting, natural skin tones, candid moment, DSLR-style photography, lifestyle realism, shallow depth of field',
-        'Illustrated': 'illustrated scene, stylized characters or objects, bold outlines, vibrant colors, cartoon or vector art look, no captions',
-    };
-
-    const colorSchemeDescriptions = {
-        vibrant: 'vibrant and energetic colors, high saturation, bold contrasts, eye-catching palette',
-        sunset: 'warm sunset tones, orange pink and purple hues, soft gradients, cinematic glow',
-        forest: 'natural green tones, earthy colors, calm and organic palette, fresh atmosphere',
-        neon: 'neon glow effects, electric blues and pinks, cyberpunk lighting, high contrast glow',
-        purple: 'purple-dominant color palette, magenta and violet tones, modern and stylish mood',
-        monochrome: 'black and white color scheme, high contrast, dramatic lighting, timeless aesthetic',
-        ocean: 'cool blue and teal tones, aquatic color palette, fresh and clean atmosphere',
-        pastel: 'soft pastel colors, low saturation, gentle tones, calm and friendly aesthetic',
-    };
-
-    /** Visual prompt for the AI background only; title is rendered as a draggable overlay in the UI. */
-    const buildBackgroundOnlyPrompt = (extra, styleBlock, colorBlock) => {
-        const subject =
-            extra?.trim() ||
-            'one strong central subject that matches the topic, clear focal point, uncluttered areas suitable for a headline overlay';
-
-        return [
-            'Professional YouTube-style thumbnail background, broadcast-safe framing, generous clean margins.',
-            `Subject and scene: ${subject}`,
-            `Art direction (visual only, no text): ${styleBlock}`,
-            `Color palette: ${colorBlock}`,
-            'High detail, sharp focus, cinematic lighting.',
-        ].join(' ');
-    };
 
     const generateThumbnail = async () => {
+
+        if (!user || !user.id || !localStorage.getItem('token')) {
+            toast.error('Please login to generate thumbnail.');
+            navigate('/login');
+            return;
+        }
+
         if (!title.trim() || !aspectRatio || !style || !colorSchemeId) {
             alert('Please fill title, style, color scheme and aspect ratio.');
             return;
         }
 
-        const stylePrompt = stylePrompts[style] || style;
-        const colorPrompt = colorSchemeDescriptions[colorSchemeId] || colorSchemeId;
-        const finalPrompt = buildBackgroundOnlyPrompt(additionalDetails, stylePrompt, colorPrompt);
         setLoading(true);
+        setLoadingStage('enhancing');
         try {
+            const enhanceTimer = setTimeout(() => {
+                setLoadingStage('generating');
+            }, 4000);
+
             const response = await fetch('http://localhost:5000/api/thumbnail/generate', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
                 },
                 body: JSON.stringify({
                     title: title.trim(),
@@ -82,48 +58,83 @@ const Generate = () => {
                     aspectRatio,
                     style,
                     colorScheme: colorSchemeId,
-                    prompt: finalPrompt,
                 }),
             });
+
+            clearTimeout(enhanceTimer);
 
             const data = await response.json();
             if (!response.ok) {
                 throw new Error(data.error || 'Failed to generate thumbnail');
             }
 
-            setTitlePosition({ xPct: 50, yPct: 88 });
-            const dataUrl = data.image_data_url
-            if (!dataUrl) {
-                throw new Error('Server did not return image data.')
+            const imageUrl = data.image_url;
+            if (!imageUrl) {
+                throw new Error('Server did not return image URL.');
             }
             setThumbnail({
-                image_url: dataUrl,
-                persisted: false,
+                image_url: imageUrl,
+                persisted: data.persisted ?? true,
                 title: data.title || title.trim(),
                 aspect_ratio: data.aspect_ratio || aspectRatio,
                 style: data.style || style,
                 color_scheme: data.color_scheme || colorSchemeId,
-                prompt_used: data.prompt_used || finalPrompt,
+                prompt_used: data.prompt_used || '',
             });
         } catch (error) {
             alert(error.message || 'Something went wrong while generating thumbnail');
         } finally {
             setLoading(false);
+            setLoadingStage('');
         }
-    }
+    };
 
     const fetchThumbnail = async () => {
         if (!id) return;
-        const thumbnail = dummyThumbnails.find((thumb) => thumb._id === id);
-        setThumbnail({ ...thumbnail, persisted: true });
-        setAspectRatio(thumbnail.aspect_ratio);
-        setColorSchemeId(thumbnail.color_scheme);
-        setStyle(thumbnail.style);
-        setAdditionalDetails(thumbnail.prompt_used);
-        setTitle(thumbnail.title);
-        setTitlePosition({ xPct: 50, yPct: 88 });
-        setLoading(false);
-    }
+
+        const token = localStorage.getItem('token');
+        if (!token) {
+            toast.error('Please login to view this thumbnail.');
+            navigate('/login');
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const res = await fetch(`http://localhost:5000/api/thumbnail/${id}`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            const data = await res.json();
+            if (res.status === 401) {
+                toast.error('Session expired. Please login again.');
+                navigate('/login');
+                return;
+            }
+            if (!res.ok) {
+                throw new Error(data.error || 'Thumbnail not found.');
+            }
+
+            setThumbnail({
+                image_url: data.image_url,
+                persisted: true,
+                title: data.title,
+                aspect_ratio: data.aspect_ratio,
+                style: data.style,
+                color_scheme: data.color_scheme,
+                prompt_used: data.prompt_used,
+            });
+            setAspectRatio(data.aspect_ratio || '16:9');
+            setColorSchemeId(data.color_scheme || colorSchemes[0].id);
+            setStyle(data.style || 'Bold & Graphic');
+            setAdditionalDetails(data.additional_details || '');
+            setTitle(data.title || '');
+        } catch (err) {
+            toast.error(err.message || 'Could not load thumbnail.');
+            navigate('/my-generations');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
         if (id) {
@@ -139,11 +150,16 @@ const Generate = () => {
                 <main className='max-w-6xl mx-auto px-4 md:px-6 lg:px-8 py-8 pb-28 lg:pb-8'>
                     <div className='grid lg:grid-cols-[400px_1fr] gap-8'>
                         {/* Left Panel */}
-                        <div className={`space-y-6 ${id && "pointer-events-none"}`}>
+                        <motion.div 
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ type: "spring", stiffness: 260, damping: 30 }}
+                            className={`space-y-6 ${id && "pointer-events-none"}`}
+                        >
                             <div className='p-6 rounded-2xl bg-white/8 border border-white/12 shadow-xl space-y-6'>
                                 <div>
                                     <h2 className='text-xl font-bold text-zinc-100 mb-1'>Create Your Thumbnail</h2>
-                                    <p className='text-sm text-zinc-400'>Describe your vision and let AI bring it to life</p>
+                                    <p className='text-sm text-zinc-400'>AI enhances your prompt with props, icons, and visuals — then generates the image</p>
                                 </div>
 
                                 <div className='space-y-5'>
@@ -169,7 +185,7 @@ const Generate = () => {
                                     <div className='space-y-2'>
                                         <label className='block text-sm font-medium'>Additional Prompt <span
                                             className='text-zinc-400 text-xs'> (optional)</span></label>
-                                        <textarea placeholder='Add any specific elements, mood or style preferences...' rows={3}
+                                        <textarea placeholder='Add specific elements, brands, or mood (e.g. laptop, charts, shocked face)...' rows={3}
                                             value={additionalDetails} onChange={(e) => setAdditionalDetails(e.target.value)}
                                             className='w-full px-4 py-3 rounded-lg border border-white/12 
                                         bg-black/20 text-zinc-100 placeholder:text-zinc-400 focus:outline-none 
@@ -190,38 +206,24 @@ const Generate = () => {
                                     )
                                 }
                             </div>
-                        </div>
+                        </motion.div>
 
                         {/* RIGHT PANEL */}
-                        <div>
+                        <motion.div
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ type: "spring", stiffness: 260, damping: 30, delay: 0.1 }}
+                        >
                             <div className="p-6 rounded-2xl bg-white/8 border border-white/10 shadow-x1">
                                 <h2 className="text-1g font-semibold text-zinc-100 mb-4">Preview</h2>
                                 <PreviewPanel
                                     thumbnail={thumbnail}
                                     loading={loading}
+                                    loadingStage={loadingStage}
                                     aspectRatio={aspectRatio}
-                                    overlayTitle={title.trim()}
-                                    titlePosition={titlePosition}
-                                    onTitlePositionChange={setTitlePosition}
-                                    titleFontScale={titleFontScale}
-                                    onTitleFontScaleChange={setTitleFontScale}
-                                    titleTextStyle={titleTextStyle}
-                                    onTitleTextStyleChange={setTitleTextStyle}
-                                    apiBaseUrl="http://localhost:5000"
-                                    onSaved={(imageUrl) => {
-                                        setThumbnail((prev) =>
-                                            prev
-                                                ? {
-                                                      ...prev,
-                                                      image_url: imageUrl,
-                                                      persisted: true,
-                                                  }
-                                                : prev,
-                                        )
-                                    }}
                                 />
                             </div>
-                        </div>
+                        </motion.div>
                     </div>
                 </main>
             </div>
