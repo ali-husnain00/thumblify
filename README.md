@@ -39,7 +39,9 @@ Thumblify/
 ├── backend/
 │   ├── app.py                 # Flask app & thumbnail API
 │   ├── config/db.py           # MySQL connection
-│   ├── routes/                # Auth: register, login, logout, user
+│   ├── routes/                # Auth + thumbnail blueprints, uploads
+│   ├── utils/                 # JWT helper, thumbnail row mapping
+│   ├── config/paths.py        # Upload folders & aspect ratios
 │   ├── services/
 │   │   ├── prompt_engineer.py # Gemini prompt enhancement
 │   │   └── save_thumbnail.py  # Persist metadata to MySQL
@@ -180,6 +182,8 @@ Runs at `http://localhost:5173` (Vite default). API calls target `http://localho
 | GET | `/api/thumbnail/list` | JWT | List user's thumbnails |
 | GET | `/api/thumbnail/:id` | JWT | Single thumbnail for view mode |
 | GET | `/uploads/<path>` | No | Serve generated images |
+
+Route modules: `routes/generate_thumbnail.py`, `list_thumbnails.py`, `get_thumbnail.py`, `uploads.py`.
 
 ## Frontend routes
 
