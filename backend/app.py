@@ -23,7 +23,9 @@ app = Flask(__name__)
 CORS(app)
 connect_db(app)
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/etc/secrets/key.json" # change this line to os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "key.json" in development mode
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = (
+    "key.json"  # change this line to os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/etc/secrets/key.json" in production mode
+)
 vertexai.init(project="xoro-492310", location="us-central1")
 
 jwt = JWTManager(app)
