@@ -1,11 +1,13 @@
 import os
+import tempfile
 import uuid
 
+import cloudinary.uploader
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
 from vertexai.preview.vision_models import ImageGenerationModel
 
-from config.paths import RATIO_SIZES, THUMBNAILS_FOLDER
+from config.paths import RATIO_SIZES
 from prompts.thumbnail_prompts import (
     build_base_prompt,
     get_color_block,
@@ -83,14 +85,23 @@ Requirements:
         )
         image = images[0]
 
-        filename = uuid.uuid4().hex + ".png"
-        user_folder = os.path.join(THUMBNAILS_FOLDER, str(user_id))
-        os.makedirs(user_folder, exist_ok=True)
-        save_path = os.path.join(user_folder, filename)
-        image.save(location=save_path)
+        # Save to a temp file, upload to Cloudinary
+        tmp_path = None
+        try:
+            with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+                tmp_path = tmp.name
+            image.save(location=tmp_path)
 
-        base_url = request.host_url.rstrip("/")
-        image_url = f"{base_url}/uploads/thumbnails/{user_id}/{filename}"
+            upload_result = cloudinary.uploader.upload(
+                tmp_path,
+                folder=f"thumblify/{user_id}",
+                public_id=uuid.uuid4().hex,
+                resource_type="image",
+            )
+            image_url = upload_result["secure_url"]
+        finally:
+            if tmp_path and os.path.exists(tmp_path):
+                os.remove(tmp_path)
 
         save_thumbnail_to_db(
             user_id, title, style, color_scheme, additional_prompt,

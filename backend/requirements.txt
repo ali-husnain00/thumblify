@@ -8,3 +8,4 @@ google-cloud-aiplatform
 vertexai
 Pillow
 gunicorn
+cloudinary
