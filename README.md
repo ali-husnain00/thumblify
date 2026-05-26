@@ -2,9 +2,10 @@
 
 AI-powered YouTube thumbnail generator. Describe your video topic, pick a style and color palette, and get a ready-to-use thumbnail with title (and optional subtitle) baked into the image.
 
-**Stack:** React (Vite) · Flask · MySQL · Google Gemini (prompt engineering) · Vertex AI Imagen
+**Stack:** React (Vite) · Flask · MySQL · Google Gemini (prompt engineering) · Vertex AI Imagen · Cloudinary
 
-**Live backend (example):** `https://thumblify-zcvr.onrender.com`
+**Live backend:** `https://thumblify-zcvr.onrender.com`
+**Live frontend:** https://thumblifyweb.vercel.app/
 
 ## Screenshots
 
@@ -35,36 +36,36 @@ AI-powered YouTube thumbnail generator. Describe your video topic, pick a style 
 | Backend | Flask, Flask-CORS, Flask-JWT-Extended, Flask-MySQLdb, Gunicorn |
 | AI | `google-genai` (Gemini) · `google-cloud-aiplatform` / Vertex AI Imagen |
 | Database | MySQL (local or [Aiven](https://aiven.io/) with SSL) |
-| Image I/O | **Pillow** (required for saving generated PNGs) |
+| Image storage | **Cloudinary** — generated thumbnails are uploaded to the Cloudinary CDN; the `secure_url` is stored in MySQL |
+| Image I/O | **Pillow** (required by Vertex AI SDK for writing temp PNGs before upload) |
 
 ## Project structure
 
 ```
 Thumblify/
 ├── backend/
-│   ├── app.py                      # App factory, Vertex init, blueprint registration
+│   ├── app.py                      # App factory, Vertex init, Cloudinary init, blueprint registration
 │   ├── config/
 │   │   ├── db.py                   # MySQL (Aiven SSL in production)
-│   │   ├── paths.py                # Upload dirs & aspect ratios
+│   │   ├── cloudinary_config.py    # Cloudinary SDK initialisation from env vars
+│   │   ├── paths.py                # Aspect-ratio size map
 │   │   └── ca.pem                  # Aiven CA cert (for SSL DB connection)
 │   ├── routes/
 │   │   ├── register.py
 │   │   ├── login.py
 │   │   ├── logout.py
 │   │   ├── get_user.py
-│   │   ├── generate_thumbnail.py   # POST /api/thumbnail/generate
+│   │   ├── generate_thumbnail.py   # POST /api/thumbnail/generate → uploads to Cloudinary
 │   │   ├── list_thumbnails.py      # GET  /api/thumbnail/list
-│   │   ├── get_thumbnail.py        # GET  /api/thumbnail/:id
-│   │   └── uploads.py              # GET  /uploads/... (serve PNGs)
+│   │   └── get_thumbnail.py        # GET  /api/thumbnail/:id
 │   ├── services/
 │   │   ├── prompt_engineer.py      # Gemini prompt enhancement
-│   │   └── save_thumbnail.py       # INSERT thumbnail metadata
+│   │   └── save_thumbnail.py       # INSERT thumbnail metadata (cloudinary URL)
 │   ├── prompts/
 │   │   └── thumbnail_prompts.py    # Style & color prompt maps
 │   ├── utils/
 │   │   ├── auth.py                 # get_jwt_user_id()
 │   │   └── thumbnail_db.py         # Row → JSON helper
-│   ├── uploads/thumbnails/{userId}/  # Generated files (gitignored)
 │   ├── key.json                    # GCP service account (gitignored)
 │   ├── .env.example
 │   └── requirements.txt
@@ -87,6 +88,7 @@ sequenceDiagram
     participant Flask
     participant Gemini
     participant Imagen
+    participant Cloudinary
     participant MySQL
 
     User->>React: Title, style, palette, optional details
@@ -96,13 +98,16 @@ sequenceDiagram
     Gemini-->>Flask: Imagen-ready prompt
     Flask->>Imagen: generate_images()
     Imagen-->>Flask: image bytes
-    Flask->>Flask: image.save() via Pillow → uploads/thumbnails/{userId}/
-    Flask->>MySQL: INSERT thumbnails
+    Flask->>Flask: image.save() → system temp file (Pillow)
+    Flask->>Cloudinary: uploader.upload(tmp_path, folder=thumblify/{userId}/)
+    Cloudinary-->>Flask: secure_url (CDN HTTPS URL)
+    Flask->>Flask: os.remove(tmp_path)
+    Flask->>MySQL: INSERT thumbnails (stores secure_url)
     Flask-->>React: image_url + metadata
     React-->>User: Preview and download
 ```
 
-Generated images are served at `/uploads/thumbnails/{userId}/{filename}.png` via `routes/uploads.py`. The full URL is stored in MySQL for the frontend `<img src>`.
+Generated images are uploaded to Cloudinary under the `thumblify/{userId}/` folder. Cloudinary's global CDN serves them directly via `secure_url` (HTTPS). No files are stored on the server.
 
 ## Prerequisites
 
@@ -111,6 +116,7 @@ Generated images are served at `/uploads/thumbnails/{userId}/{filename}.png` via
 - MySQL (local or cloud e.g. Aiven)
 - Google Cloud project with **Vertex AI** enabled + service account JSON (`key.json`)
 - **Google AI Studio** API key for Gemini ([aistudio.google.com](https://aistudio.google.com))
+- **Cloudinary** account — free tier is sufficient ([cloudinary.com](https://cloudinary.com))
 
 ## Setup
 
@@ -141,6 +147,9 @@ copy .env.example .env   # Windows
 | `PASSWORD` | MySQL password |
 | `DB_NAME` | Database name |
 | `DB_PORT` | MySQL port (required for Aiven, e.g. `12345`) |
+| `CLOUDINARY_CLOUD_NAME` | Your Cloudinary cloud name (Dashboard → Settings) |
+| `CLOUDINARY_API_KEY` | Cloudinary API key |
+| `CLOUDINARY_API_SECRET` | Cloudinary API secret |
 
 For **Aiven**, place the provided `ca.pem` in `backend/config/ca.pem` (used by `config/db.py` for SSL).
 
@@ -207,7 +216,8 @@ Update API URLs in `frontend/src` if not using Render (see [Deployment](#deploym
 | POST | `/api/thumbnail/generate` | JWT | `routes/generate_thumbnail.py` |
 | GET | `/api/thumbnail/list` | JWT | `routes/list_thumbnails.py` |
 | GET | `/api/thumbnail/:id` | JWT | `routes/get_thumbnail.py` |
-| GET | `/uploads/<path>` | No | `routes/uploads.py` |
+
+> **Note:** The `/uploads/<path>` static-file route has been removed. Images are now served directly from Cloudinary's CDN via the `image_url` field returned by the API.
 
 ## Frontend routes
 
@@ -224,7 +234,7 @@ Update API URLs in `frontend/src` if not using Render (see [Deployment](#deploym
 
 ### Backend (Gunicorn)
 
-`requirements.txt` includes `gunicorn` and `Pillow`. Example:
+`requirements.txt` includes `gunicorn`, `Pillow`, and `cloudinary`. Example:
 
 ```bash
 cd backend
@@ -233,14 +243,33 @@ gunicorn app:app --bind 0.0.0.0:$PORT
 
 On **Render** (or similar):
 
-- Set all `.env` variables in the dashboard.
+- Set all `.env` variables in the dashboard (including the three `CLOUDINARY_*` vars).
 - Add `key.json` as a secret file; set `GOOGLE_APPLICATION_CREDENTIALS` accordingly.
 - Ensure `config/ca.pem` is present if using Aiven SSL.
-- **Ephemeral disk:** uploaded thumbnails may be lost on redeploy unless you use persistent storage or external object storage.
+- **No persistent disk needed** — images are uploaded to Cloudinary and served from its CDN; the temp file is deleted immediately after upload.
 
-### Frontend
+### Frontend (Vercel)
 
-Production build:
+The frontend is deployed on **Vercel** at https://thumblifyweb.vercel.app/
+
+Vercel serves static files and doesn't know about client-side routes by default — refreshing any page other than `/` returns a 404. The fix is a `vercel.json` at the root of `frontend/` that rewrites all paths to `index.html`:
+
+```json
+{
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
+```
+
+This file is already included in `frontend/vercel.json`. Deploy steps:
+
+1. Push `frontend/` to GitHub.
+2. Import the repo on [vercel.com](https://vercel.com), set **Root Directory** to `frontend`.
+3. Vercel auto-detects Vite — no extra build config needed.
+4. Set `VITE_API_URL` env var in Vercel dashboard if you switch to environment-based API URLs.
+
+Production build (local check):
 
 ```bash
 cd frontend
@@ -264,14 +293,16 @@ For local dev against `localhost:5000`, change those URLs or introduce a `VITE_A
 | `PIL module is required for saving...` | `pip install Pillow` or redeploy after updating `requirements.txt` |
 | `Table 'thumbnails' doesn't exist` | Run the SQL schema above |
 | Push blocked for `key.json` | Never commit GCP keys; revoke and rotate if leaked |
-| Images 404 after redeploy | Render filesystem is ephemeral; use persistent volume or cloud storage |
+| `cloudinary.exceptions.AuthorizationRequired` | Check `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` in `.env` |
+| `Must supply cloud_name` | Cloudinary env vars are missing or `.env` was not loaded — ensure `load_dotenv()` runs before the import of `config.cloudinary_config` |
 
 ## Security
 
-- Never commit `backend/key.json`, `backend/.env`, or `backend/uploads/`.
+- Never commit `backend/key.json` or `backend/.env`.
 - Revoke GCP keys that were ever pushed to GitHub.
+- Keep `CLOUDINARY_API_SECRET` out of version control — treat it like a password.
 - Use a strong `JWT_SECRET_KEY` in production.
-- Prefer relative image paths or a CDN in production instead of hardcoded `localhost` URLs in the database.
+- Image URLs stored in the database are now Cloudinary HTTPS CDN URLs — no hardcoded `localhost` paths.
 
 ## Scripts
 
