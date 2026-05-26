@@ -25,7 +25,7 @@ const Login = () => {
     e.preventDefault();
     setLoading(true);
     if (state === "register") {
-      const res = await fetch("http://localhost:5000/api/register", {
+      const res = await fetch("https://thumblify-zcvr.onrender.com/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -47,7 +47,7 @@ const Login = () => {
         setLoading(false);
       }
     } else {
-      const res = await fetch("http://localhost:5000/api/login", {
+      const res = await fetch("https://thumblify-zcvr.onrender.com/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

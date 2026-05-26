@@ -10,7 +10,7 @@ const ContextProvider = ({ children }) => {
   const getUser = async () => {
     const token = localStorage.getItem("token");
     if (token) {
-      const res = await fetch("http://localhost:5000/api/user", {
+      const res = await fetch("https://thumblify-zcvr.onrender.com/api/user", {
         method: "GET",
         headers: { Authorization: `Bearer ${token}` },
       });

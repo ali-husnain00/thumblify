@@ -6,4 +6,5 @@ flask-jwt-extended
 google-genai
 google-cloud-aiplatform
 vertexai
+Pillow
 gunicorn

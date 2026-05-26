@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import SoftBackdrop from '../components/SoftBackdrop'
 import { context } from '../Context/Context'
 
-const API_BASE = 'http://localhost:5000'
+const API_BASE = 'https://thumblify-zcvr.onrender.com'
 
 const downloadImage = async (imageUrl, title) => {
     const safeName =

@@ -1,6 +1,10 @@
 # Thumblify
 
-AI-powered YouTube thumbnail generator. Describe your video topic, pick a style and color palette, and get a ready-to-use thumbnail with title (and optional subtitle) baked into the image. Built with React, Flask, Google Gemini (prompt engineering), and Vertex AI Imagen.
+AI-powered YouTube thumbnail generator. Describe your video topic, pick a style and color palette, and get a ready-to-use thumbnail with title (and optional subtitle) baked into the image.
+
+**Stack:** React (Vite) · Flask · MySQL · Google Gemini (prompt engineering) · Vertex AI Imagen
+
+**Live backend (example):** `https://thumblify-zcvr.onrender.com`
 
 ## Screenshots
 
@@ -15,12 +19,12 @@ AI-powered YouTube thumbnail generator. Describe your video topic, pick a style 
 
 ## Features
 
-- **AI thumbnail generation** — Vertex AI Imagen 4 with aspect ratios `16:9`, `1:1`, and `9:16`
-- **Smart prompts** — Google AI Studio (Gemini) expands your inputs with topic-relevant props, icons, and composition (no hex codes rendered as text)
+- **AI thumbnail generation** — Vertex AI Imagen (`imagen-4.0-generate-001`) with aspect ratios `16:9`, `1:1`, `9:16`
+- **Smart prompts** — Gemini enhances your inputs with topic-relevant props, icons, and composition
 - **10 visual styles** — Bold & Graphic, Minimalist, Photorealistic, Illustrated, Tech/Futuristic, Cyberpunk, Gaming, Horror / Dark, Retro / Vaporwave, Corporate
 - **16 color palettes** — Vibrant, Sunset, Ocean, Cyberpunk, Gaming, Gold, and more
-- **User accounts** — Register, login, JWT-protected API
-- **My Generations** — Grid of saved thumbnails, download, open any item in the editor view
+- **Auth** — Register, login, JWT-protected routes (1-day token expiry)
+- **My Generations** — List, download, and open saved thumbnails in read-only Generate view
 - **Marketing site** — Home, pricing, features, testimonials, contact
 
 ## Tech stack
@@ -28,36 +32,49 @@ AI-powered YouTube thumbnail generator. Describe your video topic, pick a style 
 | Layer | Technologies |
 |--------|----------------|
 | Frontend | React 19, Vite, Tailwind CSS 4, Motion, React Router, Sonner |
-| Backend | Flask, Flask-CORS, Flask-JWT-Extended, Flask-MySQLdb |
-| AI | `google-genai` (Gemini 2.0 Flash) for prompts, Vertex AI Imagen for images |
-| Database | MySQL |
+| Backend | Flask, Flask-CORS, Flask-JWT-Extended, Flask-MySQLdb, Gunicorn |
+| AI | `google-genai` (Gemini) · `google-cloud-aiplatform` / Vertex AI Imagen |
+| Database | MySQL (local or [Aiven](https://aiven.io/) with SSL) |
+| Image I/O | **Pillow** (required for saving generated PNGs) |
 
 ## Project structure
 
 ```
 Thumblify/
 ├── backend/
-│   ├── app.py                 # Flask app & thumbnail API
-│   ├── config/db.py           # MySQL connection
-│   ├── routes/                # Auth + thumbnail blueprints, uploads
-│   ├── utils/                 # JWT helper, thumbnail row mapping
-│   ├── config/paths.py        # Upload folders & aspect ratios
+│   ├── app.py                      # App factory, Vertex init, blueprint registration
+│   ├── config/
+│   │   ├── db.py                   # MySQL (Aiven SSL in production)
+│   │   ├── paths.py                # Upload dirs & aspect ratios
+│   │   └── ca.pem                  # Aiven CA cert (for SSL DB connection)
+│   ├── routes/
+│   │   ├── register.py
+│   │   ├── login.py
+│   │   ├── logout.py
+│   │   ├── get_user.py
+│   │   ├── generate_thumbnail.py   # POST /api/thumbnail/generate
+│   │   ├── list_thumbnails.py      # GET  /api/thumbnail/list
+│   │   ├── get_thumbnail.py        # GET  /api/thumbnail/:id
+│   │   └── uploads.py              # GET  /uploads/... (serve PNGs)
 │   ├── services/
-│   │   ├── prompt_engineer.py # Gemini prompt enhancement
-│   │   └── save_thumbnail.py  # Persist metadata to MySQL
+│   │   ├── prompt_engineer.py      # Gemini prompt enhancement
+│   │   └── save_thumbnail.py       # INSERT thumbnail metadata
 │   ├── prompts/
-│   │   └── thumbnail_prompts.py
-│   ├── uploads/thumbnails/    # Generated PNGs (per user id)
-│   ├── key.json               # GCP credentials (local only, gitignored)
+│   │   └── thumbnail_prompts.py    # Style & color prompt maps
+│   ├── utils/
+│   │   ├── auth.py                 # get_jwt_user_id()
+│   │   └── thumbnail_db.py         # Row → JSON helper
+│   ├── uploads/thumbnails/{userId}/  # Generated files (gitignored)
+│   ├── key.json                    # GCP service account (gitignored)
 │   ├── .env.example
 │   └── requirements.txt
 ├── frontend/
-│   ├── public/                # Static assets & README screenshots
+│   ├── public/                     # Screenshots & static assets
 │   └── src/
-│       ├── pages/             # Home, Generate, MyGenerations, Login, Contact
+│       ├── pages/                  # Home, Generate, MyGenerations, Login, Contact
 │       ├── components/
-│       ├── sections/            # Marketing sections
-│       └── Context/           # Auth state
+│       ├── sections/
+│       └── Context/
 └── README.md
 ```
 
@@ -73,25 +90,27 @@ sequenceDiagram
     participant MySQL
 
     User->>React: Title, style, palette, optional details
-    React->>Flask: POST /api/thumbnail/generate (JWT)
-    Flask->>Flask: Build base prompt
-    Flask->>Gemini: Enhance prompt (props, title, subtitle)
+    React->>Flask: POST /api/thumbnail/generate (Bearer JWT)
+    Flask->>Flask: build_base_prompt()
+    Flask->>Gemini: enhance_thumbnail_prompt()
     Gemini-->>Flask: Imagen-ready prompt
     Flask->>Imagen: generate_images()
-    Imagen-->>Flask: PNG
-    Flask->>Flask: Save file under uploads/thumbnails/{userId}/
+    Imagen-->>Flask: image bytes
+    Flask->>Flask: image.save() via Pillow → uploads/thumbnails/{userId}/
     Flask->>MySQL: INSERT thumbnails
     Flask-->>React: image_url + metadata
-    React-->>User: Preview & download
+    React-->>User: Preview and download
 ```
+
+Generated images are served at `/uploads/thumbnails/{userId}/{filename}.png` via `routes/uploads.py`. The full URL is stored in MySQL for the frontend `<img src>`.
 
 ## Prerequisites
 
-- **Node.js** 18+ and npm
-- **Python** 3.11+
-- **MySQL** server
-- **Google Cloud** project with Vertex AI enabled and a service account key (`key.json`)
-- **Google AI Studio API key** for Gemini ([aistudio.google.com](https://aistudio.google.com))
+- Node.js 18+ and npm
+- Python 3.11+
+- MySQL (local or cloud e.g. Aiven)
+- Google Cloud project with **Vertex AI** enabled + service account JSON (`key.json`)
+- **Google AI Studio** API key for Gemini ([aistudio.google.com](https://aistudio.google.com))
 
 ## Setup
 
@@ -101,41 +120,45 @@ sequenceDiagram
 git clone https://github.com/ali-husnain00/thumblify.git
 cd thumblify
 
-# Frontend
-cd frontend
-npm install
-
-# Backend
-cd ../backend
-pip install -r requirements.txt
+cd frontend && npm install
+cd ../backend && pip install -r requirements.txt
 ```
 
 ### 2. Environment variables
 
-Copy the example file and fill in your values:
-
 ```bash
 cd backend
 copy .env.example .env   # Windows
-# cp .env.example .env  # macOS / Linux
+# cp .env.example .env   # macOS / Linux
 ```
 
-See [backend/.env.example](backend/.env.example) for all variables.
+| Variable | Purpose |
+|----------|---------|
+| `GEMINI_API_KEY` | Google AI Studio — prompt engineering |
+| `JWT_SECRET_KEY` | Signs login tokens |
+| `HOST` | MySQL host |
+| `USER` | MySQL user |
+| `PASSWORD` | MySQL password |
+| `DB_NAME` | Database name |
+| `DB_PORT` | MySQL port (required for Aiven, e.g. `12345`) |
 
-### 3. Google Cloud credentials
+For **Aiven**, place the provided `ca.pem` in `backend/config/ca.pem` (used by `config/db.py` for SSL).
 
-1. Create a service account with Vertex AI permissions.
-2. Download the JSON key.
-3. Save it as `backend/key.json` (already in `.gitignore` — **never commit this file**).
-4. In `backend/app.py`, set your GCP `project` and `location` in `vertexai.init()` if they differ from the defaults.
+### 3. Google Cloud (Vertex AI)
+
+1. Create a service account with Vertex AI access.
+2. Download the JSON key → `backend/key.json` (**never commit**).
+3. Update `vertexai.init(project=..., location=...)` in `app.py` if needed.
+
+**Production (e.g. Render):** mount the key as a secret and point `GOOGLE_APPLICATION_CREDENTIALS` to that path (see comment in `app.py`).
 
 ### 4. Database
-
-Create the database and `users` table (from your existing auth setup), then create `thumbnails`:
 
 ```sql
 CREATE DATABASE IF NOT EXISTS Thumblify;
 USE Thumblify;
+
+-- users table from your auth setup (register route)
 
 CREATE TABLE thumbnails (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -154,67 +177,110 @@ CREATE TABLE thumbnails (
 
 ### 5. Run locally
 
-**Backend** (from `backend/`):
+**Backend** (`backend/`):
 
 ```bash
 python app.py
 ```
 
-Runs at `http://127.0.0.1:5000`.
+→ `http://127.0.0.1:5000`
 
-**Frontend** (from `frontend/`):
+**Frontend** (`frontend/`):
 
 ```bash
 npm run dev
 ```
 
-Runs at `http://localhost:5173` (Vite default). API calls target `http://localhost:5000`.
+→ `http://localhost:5173`
 
-## API overview
+Update API URLs in `frontend/src` if not using Render (see [Deployment](#deployment)).
 
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| POST | `/api/register` | No | Create account |
-| POST | `/api/login` | No | Returns JWT |
-| POST | `/api/logout` | No | Client-side logout |
-| GET | `/api/user` | JWT | Current user profile |
-| POST | `/api/thumbnail/generate` | JWT | Generate & save thumbnail |
-| GET | `/api/thumbnail/list` | JWT | List user's thumbnails |
-| GET | `/api/thumbnail/:id` | JWT | Single thumbnail for view mode |
-| GET | `/uploads/<path>` | No | Serve generated images |
+## API reference
 
-Route modules: `routes/generate_thumbnail.py`, `list_thumbnails.py`, `get_thumbnail.py`, `uploads.py`.
+| Method | Endpoint | Auth | Handler |
+|--------|----------|------|---------|
+| GET | `/` | No | Health check |
+| POST | `/api/register` | No | `routes/register.py` |
+| POST | `/api/login` | No | `routes/login.py` |
+| POST | `/api/logout` | No | `routes/logout.py` |
+| GET | `/api/user` | JWT | `routes/get_user.py` |
+| POST | `/api/thumbnail/generate` | JWT | `routes/generate_thumbnail.py` |
+| GET | `/api/thumbnail/list` | JWT | `routes/list_thumbnails.py` |
+| GET | `/api/thumbnail/:id` | JWT | `routes/get_thumbnail.py` |
+| GET | `/uploads/<path>` | No | `routes/uploads.py` |
 
 ## Frontend routes
 
-| Path | Page |
-|------|------|
+| Path | Description |
+|------|-------------|
 | `/` | Marketing home |
 | `/generate` | Create thumbnail |
-| `/generate/:id` | View saved thumbnail (read-only form) |
-| `/my-generations` | Gallery of saved work |
+| `/generate/:id` | View saved thumbnail (read-only) |
+| `/my-generations` | Gallery + download |
 | `/login` | Sign in / register |
 | `/contact` | Contact |
 
-## Security notes
+## Deployment
 
-- Keep `backend/key.json`, `backend/.env`, and any API keys **out of git**.
-- If a GCP key was ever committed, **revoke it** in Google Cloud and create a new one.
-- JWT access tokens use Flask-JWT-Extended defaults (~15 minutes) unless you set `JWT_ACCESS_TOKEN_EXPIRES` in `app.py`.
-- Rotate `JWT_SECRET_KEY` for production.
+### Backend (Gunicorn)
+
+`requirements.txt` includes `gunicorn` and `Pillow`. Example:
+
+```bash
+cd backend
+gunicorn app:app --bind 0.0.0.0:$PORT
+```
+
+On **Render** (or similar):
+
+- Set all `.env` variables in the dashboard.
+- Add `key.json` as a secret file; set `GOOGLE_APPLICATION_CREDENTIALS` accordingly.
+- Ensure `config/ca.pem` is present if using Aiven SSL.
+- **Ephemeral disk:** uploaded thumbnails may be lost on redeploy unless you use persistent storage or external object storage.
+
+### Frontend
+
+Production build:
+
+```bash
+cd frontend
+npm run build
+```
+
+API calls are currently pointed at `https://thumblify-zcvr.onrender.com` in:
+
+- `src/Context/Context.jsx`
+- `src/pages/Login.jsx`
+- `src/pages/Generate.jsx`
+- `src/pages/MyGenerations.jsx`
+
+For local dev against `localhost:5000`, change those URLs or introduce a `VITE_API_URL` env variable.
+
+## Troubleshooting
+
+| Error | Fix |
+|-------|-----|
+| `Token has expired` | Log in again (JWT expires after 1 day) |
+| `PIL module is required for saving...` | `pip install Pillow` or redeploy after updating `requirements.txt` |
+| `Table 'thumbnails' doesn't exist` | Run the SQL schema above |
+| Push blocked for `key.json` | Never commit GCP keys; revoke and rotate if leaked |
+| Images 404 after redeploy | Render filesystem is ephemeral; use persistent volume or cloud storage |
+
+## Security
+
+- Never commit `backend/key.json`, `backend/.env`, or `backend/uploads/`.
+- Revoke GCP keys that were ever pushed to GitHub.
+- Use a strong `JWT_SECRET_KEY` in production.
+- Prefer relative image paths or a CDN in production instead of hardcoded `localhost` URLs in the database.
 
 ## Scripts
 
-**Frontend**
-
 ```bash
-npm run dev      # Development server
-npm run build    # Production build
-npm run preview  # Preview production build
-```
+# Frontend
+npm run dev
+npm run build
+npm run preview
 
-**Backend**
-
-```bash
-python app.py    # Development server (debug mode)
+# Backend (development)
+python app.py
 ```

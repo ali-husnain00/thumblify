@@ -46,7 +46,7 @@ const Generate = () => {
                 setLoadingStage('generating');
             }, 4000);
 
-            const response = await fetch('http://localhost:5000/api/thumbnail/generate', {
+            const response = await fetch('https://thumblify-zcvr.onrender.com/api/thumbnail/generate', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -101,7 +101,7 @@ const Generate = () => {
 
         setLoading(true);
         try {
-            const res = await fetch(`http://localhost:5000/api/thumbnail/${id}`, {
+            const res = await fetch(`https://thumblify-zcvr.onrender.com/api/thumbnail/${id}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
             const data = await res.json();
